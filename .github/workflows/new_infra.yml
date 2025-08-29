@@ -41,7 +41,7 @@ jobs:
 
 
       - name: Comment back to the request issue
-        uses: AgentSprint/utils-actions/tree/main/comment-on-issue@main
+        uses: AgentSprint/utils-actions/comment-on-issue@main
         with:
             issue_api_url: ${{ inputs.issue_api_url }}
             body: |

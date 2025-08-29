@@ -1,0 +1,28 @@
+name: New Infra (POC)
+
+on:
+    workflow_dispatch:
+        inputs:
+            client_code:
+                description: 'Client code to deploy'
+                required: true
+                type: string
+            location:
+                description: 'Location to deploy the client code'
+                required: true
+                type: string
+            issue_url:
+                description: 'URL of the issue to deploy'
+                required: true
+                type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo received inputs
+        run: |
+          echo "===== New Infra POC ====="
+          echo "Client code: ${{ inputs.client_code }}"
+          echo "Location: ${{ inputs.location }}"
+          echo "Issue URL: ${{ inputs.issue_url }}"

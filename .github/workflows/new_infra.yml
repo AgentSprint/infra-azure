@@ -46,6 +46,6 @@ jobs:
             issue_api_url: ${{ inputs.issue_api_url }}
             body: |
                 ✅ Infra workflow received values:
-                - client_code: `${{ inputs.client_code }}`
-                - location: `${{ inputs.location }}`
+                - client_code: ${{ inputs.client_code }}
+                - location: ${{ inputs.location }}
             token: ${{ secrets.GH_TOKEN }}

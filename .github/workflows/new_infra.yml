@@ -23,6 +23,12 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      ARM_CLIENT_ID:        ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET:    ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_TENANT_ID:        ${{ secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID:  ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      GH_TOKEN:             ${{ secrets.GH_TOKEN }}
     steps:
       - name: Echo received inputs
         run: |
@@ -39,4 +45,33 @@ jobs:
                 ✅ Infra workflow received values:
                 - client_code: ${{ inputs.client_code }}
                 - location: ${{ inputs.location }}
+
+                next action: Deploy the client code to the specified location
             token: ${{ secrets.GH_TOKEN }}
+      
+      - name: terraform init
+        run: |
+          echo "Initializing Terraform..."
+          terraform init
+
+      - name: terraform plan
+        run: |
+          echo "Planning Terraform configuration..."
+          terraform plan -var="client_code=${{ inputs.client_code }}" -var="location=${{ inputs.location }}"
+
+      - name: terraform apply
+        run: |  
+          echo "Applying Terraform configuration..."
+          terraform apply -auto-approve -var="client_code=${{ inputs.client_code }}" -var="location=${{ inputs.location }}" | tee tf-apply-output.txt
+
+      - name: Comment terraform apply result to the request issue
+        uses: AgentSprint/utils-actions/issues/comment-on@main
+        with:
+          issue_api_url: ${{ inputs.issue_api_url }}
+          body: |
+            🚀 Terraform apply result for client_code: ${{ inputs.client_code }}, location: ${{ inputs.location }}:
+
+            ```
+            ${{ steps.terraform_apply.outputs.result }}
+            ```
+          token: ${{ secrets.GH_TOKEN }}            

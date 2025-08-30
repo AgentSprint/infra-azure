@@ -36,13 +36,6 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
           fetch-depth: 0
-          
-      - name: Echo received inputs
-        run: |
-          echo "===== New Infra POC ====="
-          echo "Client code: ${{ inputs.client_code }}"
-          echo "Location: ${{ inputs.location }}"
-          echo "Issue API URL: ${{ inputs.issue_api_url }}"
 
       - name: Comment back to the request issue
         uses: AgentSprint/utils-actions/issues/comment-on@main
@@ -68,25 +61,38 @@ jobs:
         working-directory: terraform
 
       - name: terraform plan
-        run: |
-          echo "Planning Terraform configuration..."
-          terraform plan -var="client_code=${{ inputs.client_code }}" -var="location=${{ inputs.location }}"
+        id: tfplan
         working-directory: terraform
+        run: |
+          set -o pipefail
+          terraform plan \
+            -var="client_code=${{ inputs.client_code }}" \
+            -var="location=${{ inputs.location }}"
+        continue-on-error: true
 
       - name: terraform apply
-        run: |  
-          echo "Applying Terraform configuration..."
-          terraform apply -auto-approve -var="client_code=${{ inputs.client_code }}" -var="location=${{ inputs.location }}" | tee tf-apply-output.txt
+        id: tfapply
         working-directory: terraform
+        run: |
+          set -o pipefail
+          terraform apply -auto-approve \
+            -var="client_code=${{ inputs.client_code }}" \
+            -var="location=${{ inputs.location }}"
+        continue-on-error: true
 
-      - name: Comment terraform apply result to the request issue
+      - name: Report Terraform status to issue
+        if: always()
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:
           issue_api_url: ${{ inputs.issue_api_url }}
           body: |
-            🚀 Terraform apply result for client_code: ${{ inputs.client_code }}, location: ${{ inputs.location }}:
+            📝 Terraform summary for client_code **${{ inputs.client_code }}**, location **${{ inputs.location }}**:
 
-            ```
-            ${{ steps.terraform_apply.outputs.result }}
-            ```
-          token: ${{ secrets.GH_TOKEN }}            
+            - Plan:  ${{ steps.tfplan.outcome == 'success' && '✅ Success' || '❌ Failed' }}
+            - Apply: ${{ steps.tfapply.outcome == 'success' && '✅ Success' || '❌ Failed' }}
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Fail job if Terraform failed
+        if: |
+          steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success'
+        run: exit 1

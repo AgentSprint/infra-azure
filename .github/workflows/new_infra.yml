@@ -53,17 +53,20 @@ jobs:
         run: |
           echo "Initializing Terraform..."
           terraform init
+        working-directory: terraform
 
       - name: terraform plan
         run: |
           echo "Planning Terraform configuration..."
           terraform plan -var="client_code=${{ inputs.client_code }}" -var="location=${{ inputs.location }}"
+        working-directory: terraform
 
       - name: terraform apply
         run: |  
           echo "Applying Terraform configuration..."
           terraform apply -auto-approve -var="client_code=${{ inputs.client_code }}" -var="location=${{ inputs.location }}" | tee tf-apply-output.txt
-
+        working-directory: terraform
+        
       - name: Comment terraform apply result to the request issue
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:

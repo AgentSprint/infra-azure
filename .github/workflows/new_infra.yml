@@ -85,7 +85,7 @@ jobs:
         id: runurl
         run: |
           echo "RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_ENV"
-          echo "RUN_URL_ATTEMPT=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}?attempt=${{ github.run_attempt }}" >> "$GITHUB_ENV"
+          echo "RUN_URL_ATTEMPT=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_ENV"
 
       # One summary comment (always), includes the link
       - name: Report Terraform status to issue

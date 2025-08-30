@@ -106,3 +106,9 @@ jobs:
       - name: Fail job if Terraform failed
         if: steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success'
         run: exit 1
+
+      - name: close request issue
+        uses: AgentSprint/utils-actions/issues/close@main
+        with:
+            issue_api_url: ${{ inputs.issue_api_url }}
+            token: ${{ secrets.GH_TOKEN }}

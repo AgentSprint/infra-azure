@@ -36,6 +36,12 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
           fetch-depth: 0
+      # Compute the HTML URL for this workflow run (+ attempt)
+      - name: Compute run URL
+        id: runurl
+        run: |
+          echo "RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_ENV"
+          echo "RUN_URL_ATTEMPT=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_ENV"
 
       - name: Comment back to the request issue
         uses: AgentSprint/utils-actions/issues/comment-on@main
@@ -47,6 +53,7 @@ jobs:
                 - location: ${{ inputs.location }}
 
                 next action: Deploy the client code to the specified location
+                URL : ${{ env.RUN_URL }}
             token: ${{ secrets.GH_TOKEN }}
 
       - name: Set up Terraform
@@ -80,12 +87,6 @@ jobs:
             -var="location=${{ inputs.location }}"
         continue-on-error: true
 
-      # Compute the HTML URL for this workflow run (+ attempt)
-      - name: Compute run URL
-        id: runurl
-        run: |
-          echo "RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_ENV"
-          echo "RUN_URL_ATTEMPT=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_ENV"
 
       # One summary comment (always), includes the link
       - name: Report Terraform status to issue
@@ -99,7 +100,7 @@ jobs:
             - Plan:  ${{ steps.tfplan.outcome == 'success' && '✅ Success' || '❌ Failed' }}
             - Apply: ${{ steps.tfapply.outcome == 'success' && '✅ Success' || '❌ Failed' }}
 
-            ${{ (steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success') && format('🔗 Run details: {0}', env.RUN_URL_ATTEMPT) || '' }}
+            ${{ (steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success') && format('🔗 Run details: ', env.RUN_URL) || '' }}
           token: ${{ secrets.GH_TOKEN }}
 
       # Finally, fail the job if either step failed

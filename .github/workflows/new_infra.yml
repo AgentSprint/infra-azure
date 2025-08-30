@@ -48,7 +48,12 @@ jobs:
 
                 next action: Deploy the client code to the specified location
             token: ${{ secrets.GH_TOKEN }}
-      
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+          
       - name: terraform init
         run: |
           echo "Initializing Terraform..."
@@ -66,7 +71,7 @@ jobs:
           echo "Applying Terraform configuration..."
           terraform apply -auto-approve -var="client_code=${{ inputs.client_code }}" -var="location=${{ inputs.location }}" | tee tf-apply-output.txt
         working-directory: terraform
-        
+
       - name: Comment terraform apply result to the request issue
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:

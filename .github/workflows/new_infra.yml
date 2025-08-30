@@ -80,19 +80,29 @@ jobs:
             -var="location=${{ inputs.location }}"
         continue-on-error: true
 
+      # Compute the HTML URL for this workflow run (+ attempt)
+      - name: Compute run URL
+        id: runurl
+        run: |
+          echo "RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_ENV"
+          echo "RUN_URL_ATTEMPT=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}?attempt=${{ github.run_attempt }}" >> "$GITHUB_ENV"
+
+      # One summary comment (always), includes the link
       - name: Report Terraform status to issue
         if: always()
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:
           issue_api_url: ${{ inputs.issue_api_url }}
           body: |
-            📝 Terraform summary for client_code **${{ inputs.client_code }}**, location **${{ inputs.location }}**:
+            📝 Terraform summary for **${{ inputs.client_code }}** @ **${{ inputs.location }}**:
 
             - Plan:  ${{ steps.tfplan.outcome == 'success' && '✅ Success' || '❌ Failed' }}
             - Apply: ${{ steps.tfapply.outcome == 'success' && '✅ Success' || '❌ Failed' }}
+
+            ${{ (steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success') && format('🔗 Run details: {0}', env.RUN_URL_ATTEMPT) || '' }}
           token: ${{ secrets.GH_TOKEN }}
 
+      # Finally, fail the job if either step failed
       - name: Fail job if Terraform failed
-        if: |
-          steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success'
+        if: steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success'
         run: exit 1

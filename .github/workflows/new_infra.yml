@@ -65,7 +65,6 @@ jobs:
           git add .
           git commit -m "Add new client ${{ inputs.client_name }} with code ${{ inputs.client_code }}"
           git push --set-upstream origin "adding_new_client_${{ inputs.client_code }}"
-          git checkout main
 
       - name: check git status
         id: git_status

@@ -99,7 +99,7 @@ jobs:
       - name: echo and exit if clean
         if: steps.git_status.outputs.clean == 'true'
         run: |
-          echo "✅ Infra already exists
+          echo "✅ Infra already exists"
           echo "No changes required"
           exit 0
 

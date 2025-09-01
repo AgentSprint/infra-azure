@@ -119,14 +119,14 @@ jobs:
             repo: "infra-azure"
             pr_number: "${{ steps.create_pr.outputs.pr_number }}"
             token: ${{ secrets.GH_TOKEN }}
-            
+
       - name: delete branch
         if: steps.git_status.outputs.clean == 'true'
         uses: AgentSprint/utils-actions/repo/branch/delete@main
         with:
             owner: "AgentSprint"
             repo: "infra-azure"
-            branch: "adding_new_client_${{ inputs.client_code }}"
+            branch_name: "adding_new_client_${{ inputs.client_code }}"
             token: ${{ secrets.GH_TOKEN }}
 
       - name: close request issue

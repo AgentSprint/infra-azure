@@ -115,7 +115,11 @@ jobs:
           owner: "AgentSprint"
           repo: "infra-azure"
           pr_number: "${{ steps.create_pr.outputs.pr_number }}"
-          labels: "tfvars_filepath:clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          issue_api_url: ${{ inputs.issue_api_url }}
+          client_name: ${{ inputs.client_name }}
+          client_code: ${{ inputs.client_code }}
+          location: ${{ inputs.location }}
+          tfvars_filepath: "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
           token: ${{ secrets.GH_TOKEN }}
 
       - name: echo

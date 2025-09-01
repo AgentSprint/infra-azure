@@ -55,7 +55,10 @@ jobs:
           fi
       - name: create a new file client_code.txt, replace if old exists
         run: |
-          echo "location : ${{ inputs.location }}" > "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.txt"
+          echo "# terraform" > "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          echo "" > "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          echo "client_code : ${{ inputs.client_code }}" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          echo "location : ${{ inputs.location }}" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
 
       - name: commit the branch
         id: git_commit_push

@@ -1,24 +1,16 @@
-name: New Infra (POC)
+name: Terraform CI
 
 on:
-  workflow_dispatch:
-    inputs:
-      client_code:
-        description: 'Client code to deploy'
-        required: true
-        type: string
-      location:
-        description: 'Location to deploy the client code'
-        required: true
-        type: string
-      issue_api_url:
-        description: 'URL of the issue to update'
-        required: true
-        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - "clients/*.tfvars"
 
 permissions:
   contents: read
   issues: write   # required to comment
+  pull-requests: read
 
 jobs:
   deploy:

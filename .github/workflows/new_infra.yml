@@ -118,6 +118,31 @@ jobs:
           echo "✅ Pull request created"
           echo "PR URL: ${{ steps.create_pr.outputs.pr_number }}"
 
+
+
+      - name: Set up Terraform
+        if: steps.git_status.outputs.clean == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: terraform init
+        if: steps.git_status.outputs.clean == 'true'
+        run: |
+          echo "Initializing Terraform..."
+          terraform init
+        working-directory: terraform
+
+      - name: terraform plan
+        if: steps.git_status.outputs.clean == 'true'
+        id: tfplan
+        working-directory: terraform
+        run: |
+          set -o pipefail
+          terraform plan \
+            -var-file="../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+        continue-on-error: true
+
       - name: Merge a pull request
         if: steps.git_status.outputs.clean == 'true'
         uses: AgentSprint/utils-actions/pull_request/merge@main
@@ -136,9 +161,40 @@ jobs:
             branch_name: "adding_new_client_${{ inputs.client_code }}"
             token: ${{ secrets.GH_TOKEN }}
 
+      - name: terraform apply
+        if: steps.git_status.outputs.clean == 'true'
+        id: tfapply
+        working-directory: terraform
+        run: |
+          set -o pipefail
+          terraform apply -auto-approve \
+            -var-file="../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+        continue-on-error: true
+
+
+      # One summary comment (always), includes the link
+      - name: Report Terraform status to issue
+        if: steps.git_status.outputs.clean == 'true'
+        uses: AgentSprint/utils-actions/issues/comment-on@main
+        with:
+          issue_api_url: ${{ inputs.issue_api_url }}
+          body: |
+            📝 Terraform summary for **${{ inputs.client_code }}** @ **${{ inputs.location }}**:
+
+            - Plan:  ${{ steps.tfplan.outcome == 'success' && '✅ Success' || '❌ Failed' }}
+            - Apply: ${{ steps.tfapply.outcome == 'success' && '✅ Success' || '❌ Failed' }}
+
+            ${{ (steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success') && format('🔗 Run details: ', env.RUN_URL) || '' }}
+          token: ${{ secrets.GH_TOKEN }}
+
+      # Finally, fail the job if either step failed
+      - name: Fail job if Terraform failed
+        if: steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success'
+        run: exit 1
+
       - name: close request issue
         if: always()
         uses: AgentSprint/utils-actions/issues/close@main
         with:
             issue_api_url: ${{ inputs.issue_api_url }}
-            token: ${{ secrets.GH_TOKEN }}  
+            token: ${{ secrets.GH_TOKEN }}

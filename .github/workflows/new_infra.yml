@@ -173,7 +173,7 @@ jobs:
         working-directory: terraform
         run: |
           set -o pipefail
-          terraform apply -auto-approve -input=false -out=tfplan -var-file=../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars
+          terraform apply -auto-approve -input=false -var-file=../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars
         continue-on-error: true
 
 

@@ -102,8 +102,13 @@ jobs:
         with:
             owner: "AgentSprint"
             repo: "infra-azure"
-            title: "Add new client ${{ inputs.client_name }} with code ${{ inputs.client_code }}"
-            body: "This pull request adds a new client ${{ inputs.client_name }} with code ${{ inputs.client_code }}."
+            title: "Add new client :${{ inputs.client_name }} (${{ inputs.client_code }})"
+            body: |
+              This PR adds the necessary configuration to onboard the new client.
+              - Company Name: ${{ inputs.client_name }}
+              - Company Code: ${{ inputs.client_code }}
+              - Location: ${{ inputs.location }}
+              - Issue URL: ${{ inputs.issue_api_url }}
             base: main
             head: "adding_new_client_${{ inputs.client_code }}"
             token: ${{ secrets.GH_TOKEN }}

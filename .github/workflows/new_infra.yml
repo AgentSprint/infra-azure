@@ -55,8 +55,8 @@ jobs:
           fi
       - name: create a new file client_code.txt, replace if old exists
         run: |
-          echo "# terraform" > "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
-          echo "" > "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          echo "# terraform.tfvars" > "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          echo "" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
           echo "client_code : ${{ inputs.client_code }}" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
           echo "location : ${{ inputs.location }}" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
 
@@ -106,6 +106,16 @@ jobs:
             body: "This pull request adds a new client ${{ inputs.client_name }} with code ${{ inputs.client_code }}."
             base: main
             head: "adding_new_client_${{ inputs.client_code }}"
+            token: ${{ secrets.GH_TOKEN }}
+
+      - name: update labels to pull request
+        if: steps.git_status.outputs.clean == 'true'
+        uses: AgentSprint/utils-actions/pull_request/label@main
+        with:
+            owner: "AgentSprint"
+            repo: "infra-azure"
+            pr_number: "${{ steps.create_pr.outputs.pr_number }}"
+            labels: "tfvars_filepath:clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
             token: ${{ secrets.GH_TOKEN }}
 
       - name: echo

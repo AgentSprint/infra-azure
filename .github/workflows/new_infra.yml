@@ -110,7 +110,7 @@ jobs:
 
       - name: update labels to pull request
         if: steps.git_status.outputs.clean == 'true'
-        uses: AgentSprint/utils-actions/pull_request/label@main
+        uses: AgentSprint/utils-actions/pull_request/update_labels@main
         with:
             owner: "AgentSprint"
             repo: "infra-azure"

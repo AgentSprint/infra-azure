@@ -24,19 +24,9 @@ permissions:
   contents: read
   issues: write   # required to comment
 
-  # (NEW) prevent concurrent runs for the same client
-concurrency:
-  group: infra-${{ inputs.client_code }}
-  cancel-in-progress: false
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-    # (NEW) safer defaults for all bash steps
-    defaults:
-      run:
-        shell: bash
-
     env:
       ARM_CLIENT_ID:        ${{ secrets.ARM_CLIENT_ID }}
       ARM_CLIENT_SECRET:    ${{ secrets.ARM_CLIENT_SECRET }}
@@ -45,246 +35,207 @@ jobs:
       GH_TOKEN:             ${{ secrets.GH_TOKEN }}
 
     steps:
+# Compute the HTML URL for this workflow run (+ attempt)
       - name: Compute run URL
         id: runurl
         run: |
-          set -euo pipefail
           echo "RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_ENV"
 
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          # Using PAT for push is fine; otherwise set permissions for GITHUB_TOKEN
           token: ${{ secrets.GH_TOKEN }}
           fetch-depth: 0
-
-      # (NEW) sanitize inputs for safe branch/paths
-      - name: Sanitize inputs
-        id: sanitize
-        run: |
-          set -euo pipefail
-
-          code_raw="${{ inputs.client_code }}"
-          name_raw="${{ inputs.client_name }}"
-
-          # Allowed for files/dirs: a-z 0-9 . _ -
-          clean_code="$(printf '%s' "$code_raw" | tr '[:upper:]' '[:lower:]' | LC_ALL=C tr -cs 'a-z0-9._-' '-')"
-          clean_name="$(printf '%s' "$name_raw" | tr '[:upper:]' '[:lower:]' | LC_ALL=C tr -cs 'a-z0-9._-' '-')"
-
-          # Trim any leading/trailing '-'
-          clean_code="${clean_code#-}"; clean_code="${clean_code%-}"
-          clean_name="${clean_name#-}"; clean_name="${clean_name%-}"
-
-          # Fallback if everything got stripped
-          [ -z "$clean_code" ] && clean_code="client"
-          [ -z "$clean_name" ] && clean_name="client"
-
-          echo "code=$clean_code" >> "$GITHUB_OUTPUT"
-          echo "name=$clean_name" >> "$GITHUB_OUTPUT"
 
       - name: Comment back to the request issue
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:
-          issue_api_url: ${{ inputs.issue_api_url }}
-          body: |
-            ✅ Infra workflow received values:
-            - client_name: ${{ steps.sanitize.outputs.name }}
-            - client_code: ${{ steps.sanitize.outputs.code }}
-            - location: ${{ inputs.location }}
-            Next action: Deploy the client code to the specified location  
-            🔗 Run: ${{ env.RUN_URL }}
-          token: ${{ secrets.GH_TOKEN }}
+            issue_api_url: ${{ inputs.issue_api_url }}
+            body: |
+                ✅ Infra workflow received values:
+                - client_code: ${{ inputs.client_code }}
+                - location: ${{ inputs.location }}
+                next action: Deploy the client code to the specified location
+                URL : ${{ env.RUN_URL }}
+            token: ${{ secrets.GH_TOKEN }}
 
-      - name: Create branch for client
+      - name: create a new branch for the client
         run: |
-          set -euo pipefail
-          git checkout -b "adding_new_client_${{ steps.sanitize.outputs.code }}"
-
-      - name: Ensure clients/<client_name> folder exists
+            git checkout -b "adding_new_client_${{ inputs.client_code }}"
+      
+      - name: creating client name folder under client if not exist
         run: |
-          set -euo pipefail
-          mkdir -p "clients/${{ steps.sanitize.outputs.name }}"
-
-      - name: Write tfvars file (idempotent)
+          if [ ! -d "clients/${{ inputs.client_name }}" ]; then
+            mkdir -p "clients/${{ inputs.client_name }}"
+          fi
+      - name: create a new file client_code.txt, replace if old exists
         run: |
-          set -euo pipefail
-          cat > "clients/${{ steps.sanitize.outputs.name }}/${{ steps.sanitize.outputs.code }}.tfvars" <<EOF
-          # terraform.tfvars
-          client_code = "${{ steps.sanitize.outputs.code }}"
-          location    = "${{ inputs.location }}"
-          EOF
+          echo "# terraform.tfvars" > "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          echo "" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          echo "client_code = \"${{ inputs.client_code }}\"" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          echo "location = \"${{ inputs.location }}\"" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
 
-      - name: Check git status
+      - name: check git status
         id: git_status
         run: |
-          set -euo pipefail
-          if git diff --quiet && git diff --cached --quiet; then
-            echo "clean=true" >> "$GITHUB_OUTPUT"
+          STATUS="$(git status)"
+          echo "$STATUS"
+          if echo "$STATUS" | grep -q "nothing to commit, working tree clean"; then
+            echo "clean=true" >> $GITHUB_OUTPUT
           else
-            echo "clean=false" >> "$GITHUB_OUTPUT"
+            echo "clean=false" >> $GITHUB_OUTPUT
           fi
 
-      # If clean, close the issue and end successfully
-      - name: Update issue (infra already exists)
+      # One summary comment (always), includes the link
+      - name: Update issue with Infra
         if: steps.git_status.outputs.clean == 'true'
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:
           issue_api_url: ${{ inputs.issue_api_url }}
           body: |
-            ✅ Infra already exists — no changes required.
+            ✅ Infra already exists
+            No changes required
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Close request issue
+      - name: close request issue
         if: steps.git_status.outputs.clean == 'true'
         uses: AgentSprint/utils-actions/issues/close@main
         with:
-          issue_api_url: ${{ inputs.issue_api_url }}
-          token: ${{ secrets.GH_TOKEN }}
+            issue_api_url: ${{ inputs.issue_api_url }}
+            token: ${{ secrets.GH_TOKEN }}
 
-      - name: Stop job (no changes)
+      - name: echo and exit if clean
         if: steps.git_status.outputs.clean == 'true'
-        run: exit 0
+        run: |
+          echo "✅ Infra already exists"
+          echo "No changes required"
+          exit 1
 
-      - name: Commit and push branch
+      - name: commit the branch
         id: git_commit_push
         run: |
-          set -euo pipefail
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add -A
-          git commit -m "Add new client ${{ steps.sanitize.outputs.name }} with code ${{ steps.sanitize.outputs.code }}"
-          git push --set-upstream origin "adding_new_client_${{ steps.sanitize.outputs.code }}"
+          git add .
+          git commit -m "Add new client ${{ inputs.client_name }} with code ${{ inputs.client_code }}"
+          git push --set-upstream origin "adding_new_client_${{ inputs.client_code }}"
 
-      - name: Update issue (branch created)
+      - name: Update issue
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:
           issue_api_url: ${{ inputs.issue_api_url }}
           body: |
-            ✅ Branch created and pushed: `adding_new_client_${{ steps.sanitize.outputs.code }}`
+            ✅ branch created and pushed
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Create pull request
+      - name: create a pull request
         id: create_pr
         uses: AgentSprint/utils-actions/pull_request/create@main
         with:
-          owner: "AgentSprint"
-          repo: "infra-azure"
-          title: "Add new client :${{ steps.sanitize.outputs.name }} (${{ steps.sanitize.outputs.code }})"
-          issue_api_url: ${{ inputs.issue_api_url }}
-          client_name: ${{ steps.sanitize.outputs.name }}
-          client_code: ${{ steps.sanitize.outputs.code }}
-          location: ${{ inputs.location }}
-          tfvars_filepath: "clients/${{ steps.sanitize.outputs.name }}/${{ steps.sanitize.outputs.code }}.tfvars"
-          base: main
-          head: "adding_new_client_${{ steps.sanitize.outputs.code }}"
-          token: ${{ secrets.GH_TOKEN }}
+            owner: "AgentSprint"
+            repo: "infra-azure"
+            title: "Add new client :${{ inputs.client_name }} (${{ inputs.client_code }})"
+            issue_api_url: ${{ inputs.issue_api_url }}
+            client_name: ${{ inputs.client_name }}
+            client_code: ${{ inputs.client_code }}
+            location: ${{ inputs.location }}
+            tfvars_filepath: "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+            base: main
+            head: "adding_new_client_${{ inputs.client_code }}"
+            token: ${{ secrets.GH_TOKEN }}
 
-      - name: Update issue (PR created)
+      - name: Update issue
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:
           issue_api_url: ${{ inputs.issue_api_url }}
           body: |
-            ✅ Pull request created: ${{ steps.create_pr.outputs.pr_url }}
+            ✅ pull request created ${{ steps.create_pr.outputs.pr_url }}
           token: ${{ secrets.GH_TOKEN }}
 
-      # (NEW) Terraform lint & validate
+
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.5
 
-      - name: terraform fmt (check)
-        working-directory: terraform
-        run: terraform fmt -check
-
-      - name: terraform validate
-        working-directory: terraform
-        run: terraform validate
-
       - name: terraform init
+        run: |
+          echo "Initializing Terraform..."
+          terraform init
         working-directory: terraform
-        run: terraform init
 
-      # Capture explicit exit codes instead of relying on 'outcome'
       - name: terraform plan
         id: tfplan
         working-directory: terraform
         run: |
-          set +e
-          terraform plan -input=false -out=tfplan -var-file=../clients/${{ steps.sanitize.outputs.name }}/${{ steps.sanitize.outputs.code }}.tfvars
-          echo "code=$?" >> "$GITHUB_OUTPUT"
-          # Always succeed the step so we can branch later
-          exit 0
+          set -o pipefail
+          terraform plan -input=false -out=tfplan -var-file=../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars
+        continue-on-error: true
 
-      - name: terraform apply (from saved plan)
+      - name: terraform apply
         id: tfapply
         working-directory: terraform
         run: |
-          set +e
-          # only attempt apply if plan succeeded
-          if [ "${{ steps.tfplan.outputs.code }}" = "0" ]; then
-            terraform apply -auto-approve tfplan
-            echo "code=$?" >> "$GITHUB_OUTPUT"
-          else
-            echo "code=1" >> "$GITHUB_OUTPUT"
-          fi
-          exit 0
+          set -o pipefail
+          terraform apply -auto-approve -input=false -var-file=../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars
+        continue-on-error: true
 
+      # One summary comment (always), includes the link
       - name: Report Terraform status to issue
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:
           issue_api_url: ${{ inputs.issue_api_url }}
           body: |
-            📝 Terraform summary for **${{ steps.sanitize.outputs.code }}** @ **${{ inputs.location }}**:
-            - Plan:  ${{ steps.tfplan.outputs.code == '0' && '✅ Success' || '❌ Failed' }}
-            - Apply: ${{ steps.tfapply.outputs.code == '0' && '✅ Success' || '❌ Skipped/Failed' }}
-            ${{ (steps.tfplan.outputs.code != '0' || steps.tfapply.outputs.code != '0') && format('🔗 Run details: {0}', env.RUN_URL) || '' }}
+            📝 Terraform summary for **${{ inputs.client_code }}** @ **${{ inputs.location }}**:
+            - Plan:  ${{ steps.tfplan.outcome == 'success' && '✅ Success' || '❌ Failed' }}
+            - Apply: ${{ steps.tfapply.outcome == 'success' && '✅ Success' || '❌ Failed' }}
+
+            ${{ (steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success') && format('🔗 Run details: ', env.RUN_URL) || '' }}
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Cleanup branch on failure
-        if: steps.tfplan.outputs.code != '0' || steps.tfapply.outputs.code != '0'
+      - name: cleanup deleting branch as it failed
+        if: steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success'
         uses: AgentSprint/utils-actions/repo/branch/delete@main
         with:
-          owner: "AgentSprint"
-          repo: "infra-azure"
-          branch_name: "adding_new_client_${{ steps.sanitize.outputs.code }}"
-          token: ${{ secrets.GH_TOKEN }}
+            owner: "AgentSprint"
+            repo: "infra-azure"
+            branch_name: "adding_new_client_${{ inputs.client_code }}"
+            token: ${{ secrets.GH_TOKEN }}
 
-      # Hard-fail the job if either step failed
+      # Finally, fail the job if either step failed
       - name: Fail job if Terraform failed
-        if: steps.tfplan.outputs.code != '0' || steps.tfapply.outputs.code != '0'
+        if: steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success'
         run: exit 1
 
-      - name: Merge pull request (only if BOTH succeeded)
-        if: steps.tfplan.outputs.code == '0' && steps.tfapply.outputs.code == '0'
+      - name: Merge a pull request
+        if: steps.tfplan.outcome == 'success' || steps.tfapply.outcome == 'success'
         uses: AgentSprint/utils-actions/pull_request/merge@main
         with:
-          owner: "AgentSprint"
-          repo: "infra-azure"
-          pr_number: "${{ steps.create_pr.outputs.pr_number }}"
-          token: ${{ secrets.GH_TOKEN }}
+            owner: "AgentSprint"
+            repo: "infra-azure"
+            pr_number: "${{ steps.create_pr.outputs.pr_number }}"
+            token: ${{ secrets.GH_TOKEN }}
 
-      - name: Update issue (PR merged)
-        if: steps.tfplan.outputs.code == '0' && steps.tfapply.outputs.code == '0'
+      - name: Update issue
+        if: steps.tfplan.outcome == 'success' || steps.tfapply.outcome == 'success'
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:
           issue_api_url: ${{ inputs.issue_api_url }}
           body: |
-            ✅ Pull request merged.
+            ✅ pull request merged
           token: ${{ secrets.GH_TOKEN }}
-
-      - name: Delete branch after merge
-        if: steps.tfplan.outputs.code == '0' && steps.tfapply.outputs.code == '0'
+            
+      - name: delete branch
         uses: AgentSprint/utils-actions/repo/branch/delete@main
         with:
-          owner: "AgentSprint"
-          repo: "infra-azure"
-          branch_name: "adding_new_client_${{ steps.sanitize.outputs.code }}"
-          token: ${{ secrets.GH_TOKEN }}
+            owner: "AgentSprint"
+            repo: "infra-azure"
+            branch_name: "adding_new_client_${{ inputs.client_code }}"
+            token: ${{ secrets.GH_TOKEN }}
 
-      - name: Close request issue (success path)
-        if: steps.tfplan.outputs.code == '0' && steps.tfapply.outputs.code == '0'
+
+      - name: close request issues
         uses: AgentSprint/utils-actions/issues/close@main
         with:
-          issue_api_url: ${{ inputs.issue_api_url }}
-          token: ${{ secrets.GH_TOKEN }}
+            issue_api_url: ${{ inputs.issue_api_url }}
+            token: ${{ secrets.GH_TOKEN }}

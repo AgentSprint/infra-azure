@@ -1,0 +1,107 @@
+name: New Infra (POC)
+
+on:
+  workflow_dispatch:
+    inputs:
+      client_name:
+        description: 'Client Name to deploy'
+        required: true
+        type: string
+      client_code:
+        description: 'Client code to deploy'
+        required: true
+        type: string
+      issue_api_url:
+        description: 'URL of the issue to update'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write   # required to comment
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      ARM_CLIENT_ID:        ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET:    ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_TENANT_ID:        ${{ secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID:  ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      GH_TOKEN:             ${{ secrets.GH_TOKEN }}
+
+    steps:
+# Compute the HTML URL for this workflow run (+ attempt)
+      - name: Compute run URL
+        id: runurl
+        run: |
+          echo "RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_ENV"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 0
+
+      - name: Comment back to the request issue
+        uses: AgentSprint/utils-actions/issues/comment-on@main
+        with:
+            issue_api_url: ${{ inputs.issue_api_url }}
+            body: |
+                ✅ Infra workflow received values:
+                - client_code: ${{ inputs.client_code }}
+                - location: ${{ inputs.location }}
+                next action: Deploy the client code to the specified location
+                URL : ${{ env.RUN_URL }}
+            token: ${{ secrets.GH_TOKEN }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: terraform init
+        run: |
+          echo "Initializing Terraform..."
+          terraform init
+        working-directory: terraform
+
+      - name: terraform plan
+        id: tfplan
+        working-directory: terraform
+        run: |
+          set -o pipefail
+          terraform plan -input=false -out=tfplan -var-file=../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars
+        continue-on-error: true
+
+      - name: terraform apply
+        id: tfapply
+        working-directory: terraform
+        run: |
+          set -o pipefail
+          terraform apply -auto-approve -input=false -var-file=../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars
+        continue-on-error: true
+
+      # One summary comment (always), includes the link
+      - name: Report Terraform status to issue
+        uses: AgentSprint/utils-actions/issues/comment-on@main
+        with:
+          issue_api_url: ${{ inputs.issue_api_url }}
+          body: |
+            📝 Terraform summary for **${{ inputs.client_code }}** @ **${{ inputs.location }}**:
+            - Plan:  ${{ steps.tfplan.outcome == 'success' && '✅ Success' || '❌ Failed' }}
+            - Apply: ${{ steps.tfapply.outcome == 'success' && '✅ Success' || '❌ Failed' }}
+
+            ${{ (steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success') && format('🔗 Run details: ', env.RUN_URL) || '' }}
+          token: ${{ secrets.GH_TOKEN }}
+
+      # Finally, fail the job if either step failed
+      - name: Fail job if Terraform failed
+        if: steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success'
+        run: exit 1
+
+      - name: close request issues
+        uses: AgentSprint/utils-actions/issues/close@main
+        with:
+            issue_api_url: ${{ inputs.issue_api_url }}
+            token: ${{ secrets.GH_TOKEN }}

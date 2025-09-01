@@ -57,8 +57,8 @@ jobs:
         run: |
           echo "# terraform.tfvars" > "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
           echo "" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
-          echo "client_code : ${{ inputs.client_code }}" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
-          echo "location : ${{ inputs.location }}" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          echo "client_code = ${{ inputs.client_code }}" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          echo "location = ${{ inputs.location }}" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
 
       - name: commit the branch
         id: git_commit_push

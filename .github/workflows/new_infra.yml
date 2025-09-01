@@ -67,15 +67,6 @@ jobs:
           echo "client_code = \"${{ inputs.client_code }}\"" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
           echo "location = \"${{ inputs.location }}\"" >> "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
 
-      - name: commit the branch
-        id: git_commit_push
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add .
-          git commit -m "Add new client ${{ inputs.client_name }} with code ${{ inputs.client_code }}"
-          git push --set-upstream origin "adding_new_client_${{ inputs.client_code }}"
-
       - name: check git status
         id: git_status
         run: |
@@ -87,23 +78,41 @@ jobs:
             echo "clean=false" >> $GITHUB_OUTPUT
           fi
 
+      # One summary comment (always), includes the link
+      - name: Update issue with Infra
+        if: steps.git_status.outputs.clean == 'false'
+        uses: AgentSprint/utils-actions/issues/comment-on@main
+        with:
+          issue_api_url: ${{ inputs.issue_api_url }}
+          body: |
+            ✅ Infra already exists
+            No changes required
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: close request issue
+        if: steps.git_status.outputs.clean == 'false'
+        uses: AgentSprint/utils-actions/issues/close@main
+        with:
+            issue_api_url: ${{ inputs.issue_api_url }}
+            token: ${{ secrets.GH_TOKEN }}
+
       - name: Echo
         if: steps.git_status.outputs.clean == 'false'
         run: |
             echo "✅ Infra already exists"
             echo "No changes required"
+            exit 0
 
-      - name: Update issue and exit if infra already exists
-        if: steps.git_status.outputs.clean == 'false'
-        uses: AgentSprint/utils-actions/issues/comment-on@main
-        with:
-            issue_api_url: ${{ inputs.issue_api_url }}
-            body: |
-                ✅ Infra already exists
-            token: ${{ secrets.GH_TOKEN }}
+      - name: commit the branch
+        id: git_commit_push
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Add new client ${{ inputs.client_name }} with code ${{ inputs.client_code }}"
+          git push --set-upstream origin "adding_new_client_${{ inputs.client_code }}"
 
       - name: create a pull request
-        if: steps.git_status.outputs.clean == 'true'
         id: create_pr
         uses: AgentSprint/utils-actions/pull_request/create@main
         with:
@@ -120,28 +129,22 @@ jobs:
             token: ${{ secrets.GH_TOKEN }}
 
       - name: echo
-        if: steps.git_status.outputs.clean == 'true'
         run: |
           echo "✅ Pull request created"
           echo "PR URL: ${{ steps.create_pr.outputs.pr_number }}"
 
-
-
       - name: Set up Terraform
-        if: steps.git_status.outputs.clean == 'true'
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.5
 
       - name: terraform init
-        if: steps.git_status.outputs.clean == 'true'
         run: |
           echo "Initializing Terraform..."
           terraform init
         working-directory: terraform
 
       - name: terraform plan
-        if: steps.git_status.outputs.clean == 'true'
         id: tfplan
         working-directory: terraform
         run: |
@@ -150,7 +153,6 @@ jobs:
         continue-on-error: true
 
       - name: Merge a pull request
-        if: steps.git_status.outputs.clean == 'true'
         uses: AgentSprint/utils-actions/pull_request/merge@main
         with:
             owner: "AgentSprint"
@@ -159,7 +161,6 @@ jobs:
             token: ${{ secrets.GH_TOKEN }}
 
       - name: delete branch
-        if: steps.git_status.outputs.clean == 'true'
         uses: AgentSprint/utils-actions/repo/branch/delete@main
         with:
             owner: "AgentSprint"
@@ -168,7 +169,6 @@ jobs:
             token: ${{ secrets.GH_TOKEN }}
 
       - name: terraform apply
-        if: steps.git_status.outputs.clean == 'true'
         id: tfapply
         working-directory: terraform
         run: |
@@ -179,13 +179,11 @@ jobs:
 
       # One summary comment (always), includes the link
       - name: Report Terraform status to issue
-        if: steps.git_status.outputs.clean == 'true'
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:
           issue_api_url: ${{ inputs.issue_api_url }}
           body: |
             📝 Terraform summary for **${{ inputs.client_code }}** @ **${{ inputs.location }}**:
-
             - Plan:  ${{ steps.tfplan.outcome == 'success' && '✅ Success' || '❌ Failed' }}
             - Apply: ${{ steps.tfapply.outcome == 'success' && '✅ Success' || '❌ Failed' }}
 

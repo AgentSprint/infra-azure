@@ -112,11 +112,14 @@ jobs:
         if: steps.git_status.outputs.clean == 'true'
         uses: AgentSprint/utils-actions/pull_request/update_labels@main
         with:
-            owner: "AgentSprint"
-            repo: "infra-azure"
-            pr_number: "${{ steps.create_pr.outputs.pr_number }}"
-            labels: "tfvars_filepath:clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars, issue_url:${{ inputs.issue_api_url}}"
-            token: ${{ secrets.GH_TOKEN }}
+          owner: "AgentSprint"
+          repo: "infra-azure"
+          pr_number: "${{ steps.create_pr.outputs.pr_number }}"
+          # keep labels short
+          labels: >-
+            ["tfvars_filepath:clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars",
+            "issue_url:${{ inputs.issue_api_url }}"]
+          token: ${{ secrets.GH_TOKEN }}
 
       - name: echo
         if: steps.git_status.outputs.clean == 'true'

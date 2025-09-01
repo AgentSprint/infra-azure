@@ -80,7 +80,7 @@ jobs:
 
       # One summary comment (always), includes the link
       - name: Update issue with Infra
-        if: steps.git_status.outputs.clean == 'false'
+        if: steps.git_status.outputs.clean == 'true'
         uses: AgentSprint/utils-actions/issues/comment-on@main
         with:
           issue_api_url: ${{ inputs.issue_api_url }}
@@ -90,14 +90,14 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
 
       - name: close request issue
-        if: steps.git_status.outputs.clean == 'false'
+        if: steps.git_status.outputs.clean == 'true'
         uses: AgentSprint/utils-actions/issues/close@main
         with:
             issue_api_url: ${{ inputs.issue_api_url }}
             token: ${{ secrets.GH_TOKEN }}
 
       - name: Echo
-        if: steps.git_status.outputs.clean == 'false'
+        if: steps.git_status.outputs.clean == 'true'
         run: |
             echo "✅ Infra already exists"
             echo "No changes required"
@@ -195,8 +195,7 @@ jobs:
         if: steps.tfplan.outcome != 'success' || steps.tfapply.outcome != 'success'
         run: exit 1
 
-      - name: close request issue
-        if: always()
+      - name: close request issues
         uses: AgentSprint/utils-actions/issues/close@main
         with:
             issue_api_url: ${{ inputs.issue_api_url }}

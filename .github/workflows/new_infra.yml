@@ -103,24 +103,14 @@ jobs:
             owner: "AgentSprint"
             repo: "infra-azure"
             title: "Add new client :${{ inputs.client_name }} (${{ inputs.client_code }})"
-            body: "issue_url:${{ inputs.issue_api_url }}"
+            issue_api_url: ${{ inputs.issue_api_url }}
+            client_name: ${{ inputs.client_name }}
+            client_code: ${{ inputs.client_code }}
+            location: ${{ inputs.location }}
+            tfvars_filepath: "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
             base: main
             head: "adding_new_client_${{ inputs.client_code }}"
             token: ${{ secrets.GH_TOKEN }}
-
-      - name: update labels to pull request
-        if: steps.git_status.outputs.clean == 'true'
-        uses: AgentSprint/utils-actions/pull_request/update_labels@main
-        with:
-          owner: "AgentSprint"
-          repo: "infra-azure"
-          pr_number: "${{ steps.create_pr.outputs.pr_number }}"
-          issue_api_url: ${{ inputs.issue_api_url }}
-          client_name: ${{ inputs.client_name }}
-          client_code: ${{ inputs.client_code }}
-          location: ${{ inputs.location }}
-          tfvars_filepath: "clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
-          token: ${{ secrets.GH_TOKEN }}
 
       - name: echo
         if: steps.git_status.outputs.clean == 'true'

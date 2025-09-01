@@ -63,8 +63,22 @@ jobs:
         id: sanitize
         run: |
           set -euo pipefail
-          clean_code="$(printf '%s' "${{ inputs.client_code }}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9._-/' '-' )"
-          clean_name="$(printf '%s' "${{ inputs.client_name }}" | tr -cs '[:alnum:] _.-' '-' )"
+
+          code_raw="${{ inputs.client_code }}"
+          name_raw="${{ inputs.client_name }}"
+
+          # Allowed for files/dirs: a-z 0-9 . _ -
+          clean_code="$(printf '%s' "$code_raw" | tr '[:upper:]' '[:lower:]' | LC_ALL=C tr -cs 'a-z0-9._-' '-')"
+          clean_name="$(printf '%s' "$name_raw" | tr '[:upper:]' '[:lower:]' | LC_ALL=C tr -cs 'a-z0-9._-' '-')"
+
+          # Trim any leading/trailing '-'
+          clean_code="${clean_code#-}"; clean_code="${clean_code%-}"
+          clean_name="${clean_name#-}"; clean_name="${clean_name%-}"
+
+          # Fallback if everything got stripped
+          [ -z "$clean_code" ] && clean_code="client"
+          [ -z "$clean_name" ] && clean_name="client"
+
           echo "code=$clean_code" >> "$GITHUB_OUTPUT"
           echo "name=$clean_name" >> "$GITHUB_OUTPUT"
 

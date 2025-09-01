@@ -139,8 +139,7 @@ jobs:
         working-directory: terraform
         run: |
           set -o pipefail
-          terraform plan \
-            -var-file="../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          terraform plan -input=false -out=tfplan -var-file=../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars
         continue-on-error: true
 
       - name: Merge a pull request
@@ -167,8 +166,7 @@ jobs:
         working-directory: terraform
         run: |
           set -o pipefail
-          terraform apply -auto-approve \
-            -var-file="../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars"
+          terraform apply -auto-approve -input=false -out=tfplan -var-file=../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars
         continue-on-error: true
 
 

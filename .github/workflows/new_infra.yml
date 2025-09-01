@@ -101,7 +101,7 @@ jobs:
         run: |
           echo "✅ Infra already exists"
           echo "No changes required"
-          exit 0
+          exit 1
 
       - name: commit the branch
         id: git_commit_push

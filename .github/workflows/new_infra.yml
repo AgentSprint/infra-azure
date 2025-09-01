@@ -35,6 +35,12 @@ jobs:
       GH_TOKEN:             ${{ secrets.GH_TOKEN }}
 
     steps:
+# Compute the HTML URL for this workflow run (+ attempt)
+      - name: Compute run URL
+        id: runurl
+        run: |
+          echo "RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_ENV"
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -49,6 +55,8 @@ jobs:
                 ✅ Infra workflow received values:
                 - client_code: ${{ inputs.client_code }}
                 - location: ${{ inputs.location }}
+                next action: Deploy the client code to the specified location
+                URL : ${{ env.RUN_URL }}
             token: ${{ secrets.GH_TOKEN }}
 
       - name: create a new branch for the client
@@ -112,6 +120,14 @@ jobs:
           git commit -m "Add new client ${{ inputs.client_name }} with code ${{ inputs.client_code }}"
           git push --set-upstream origin "adding_new_client_${{ inputs.client_code }}"
 
+      - name: Update issue
+        uses: AgentSprint/utils-actions/issues/comment-on@main
+        with:
+          issue_api_url: ${{ inputs.issue_api_url }}
+          body: |
+            ✅ branch created and pushed
+          token: ${{ secrets.GH_TOKEN }}
+
       - name: create a pull request
         id: create_pr
         uses: AgentSprint/utils-actions/pull_request/create@main
@@ -128,10 +144,14 @@ jobs:
             head: "adding_new_client_${{ inputs.client_code }}"
             token: ${{ secrets.GH_TOKEN }}
 
-      - name: echo
-        run: |
-          echo "✅ Pull request created"
-          echo "PR URL: ${{ steps.create_pr.outputs.pr_number }}"
+      - name: Update issue
+        uses: AgentSprint/utils-actions/issues/comment-on@main
+        with:
+          issue_api_url: ${{ inputs.issue_api_url }}
+          body: |
+            ✅ pull request created ${{ steps.create_pr.outputs.pr_url }}
+          token: ${{ secrets.GH_TOKEN }}
+
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -152,6 +172,14 @@ jobs:
           terraform plan -input=false -out=tfplan -var-file=../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars
         continue-on-error: true
 
+      - name: Update issue
+        uses: AgentSprint/utils-actions/issues/comment-on@main
+        with:
+          issue_api_url: ${{ inputs.issue_api_url }}
+          body: |
+            ✅ terraform plan successfull
+          token: ${{ secrets.GH_TOKEN }}
+
       - name: Merge a pull request
         uses: AgentSprint/utils-actions/pull_request/merge@main
         with:
@@ -160,6 +188,14 @@ jobs:
             pr_number: "${{ steps.create_pr.outputs.pr_number }}"
             token: ${{ secrets.GH_TOKEN }}
 
+      - name: Update issue
+        uses: AgentSprint/utils-actions/issues/comment-on@main
+        with:
+          issue_api_url: ${{ inputs.issue_api_url }}
+          body: |
+            ✅ pull request merged
+          token: ${{ secrets.GH_TOKEN }}
+            
       - name: delete branch
         uses: AgentSprint/utils-actions/repo/branch/delete@main
         with:
@@ -176,6 +212,13 @@ jobs:
           terraform apply -auto-approve -input=false -var-file=../clients/${{ inputs.client_name }}/${{ inputs.client_code }}.tfvars
         continue-on-error: true
 
+      - name: Update issue
+        uses: AgentSprint/utils-actions/issues/comment-on@main
+        with:
+          issue_api_url: ${{ inputs.issue_api_url }}
+          body: |
+            ✅ terraform apply successfully completed
+          token: ${{ secrets.GH_TOKEN }}
 
       # One summary comment (always), includes the link
       - name: Report Terraform status to issue

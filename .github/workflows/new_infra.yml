@@ -96,12 +96,12 @@ jobs:
             issue_api_url: ${{ inputs.issue_api_url }}
             token: ${{ secrets.GH_TOKEN }}
 
-      - name: Echo
+      - name: echo and exit if clean
         if: steps.git_status.outputs.clean == 'true'
         run: |
-            echo "✅ Infra already exists"
-            echo "No changes required"
-            exit 0
+          echo "✅ Infra already exists
+          echo "No changes required"
+          exit 0
 
       - name: commit the branch
         id: git_commit_push

@@ -183,7 +183,7 @@ resource "azurerm_network_security_rule" "agent_deny_vnet_in" {
 # Inbound: allow Jump → Agent (SSH/RDP/WinRM)
 resource "azurerm_network_security_rule" "agent_allow_jump_mgmt" {
   name                        = "allow-jump-to-agent-mgmt"
-  priority                    = 110
+  priority                    = 101
   direction                   = "Inbound"
   access                      = "Allow"
   protocol                    = "Tcp"

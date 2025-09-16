@@ -1,3 +1,5 @@
+# Ignore Terraform local state and cache
+.terraform/
 # Python-generated files
 __pycache__/
 *.py[oc]

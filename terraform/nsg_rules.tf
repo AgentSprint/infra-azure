@@ -74,6 +74,24 @@ resource "azurerm_network_security_rule" "core_deny_all_out" {
 }
 
 
+# Outbound: allow core subnet to Service Bus Private Endpoint over 443
+# resource "azurerm_network_security_rule" "core_allow_sb_pe" {
+#  name                        = "allow-core-to-sb-pe"
+#  priority                    = 119
+#  direction                   = "Outbound"
+#  access                      = "Allow"
+#  protocol                    = "Tcp"
+#  source_address_prefix       = var.subnets["core"]                  # e.g. 10.1.0.0/26
+#  destination_address_prefix  = azurerm_private_endpoint.sb_pe.private_service_connection[0].private_ip_address
+#  source_port_range           = "*"
+#  destination_port_range      = "443"
+#  resource_group_name         = azurerm_resource_group.core.name
+#  network_security_group_name = azurerm_network_security_group.nsg["core"].name
+#}
+#######################################################################
+# JUMP NSG RULES
+#######################################################################
+
 # Inbound: allow only Admin CIDRs
 resource "azurerm_network_security_rule" "jump_allow_admin_in" {
   for_each                    = toset(var.admin_cidrs)
@@ -149,6 +167,10 @@ resource "azurerm_network_security_rule" "jump_deny_all_out" {
   resource_group_name         = azurerm_resource_group.core.name
   network_security_group_name = azurerm_network_security_group.nsg["jump"].name
 }
+
+#######################################################################
+# AGENT NSG RULES
+#######################################################################
 
 # Inbound: deny agent ↔ agent (east-west)
 resource "azurerm_network_security_rule" "agent_deny_east_west" {

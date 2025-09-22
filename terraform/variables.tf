@@ -28,3 +28,8 @@ variable "admin_cidrs" {
   type = list(string)
   description = "List of admin cidrs"
 }
+
+variable "subnet_func_ip"{
+    description     = "subnet ip address space"
+    type            = string
+}

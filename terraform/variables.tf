@@ -1,17 +1,17 @@
 variable "client_code" {
-    description     = "client code for resource naming"
-    type            = string
+  description = "client code for resource naming"
+  type        = string
 }
 
 variable "location" {
-    description     = "client azure location"
-    type            = string
-    default         = "Central India"
+  description = "client azure location"
+  type        = string
+  default     = "Central India"
 }
 
-variable "vnet_ip_address_space"{
-    description     = "vnet ip address space"
-    type            = string
+variable "vnet_ip_address_space" {
+  description = "vnet ip address space"
+  type        = string
 }
 
 variable "subnets" {
@@ -20,16 +20,16 @@ variable "subnets" {
 }
 
 variable "base_groups" {
-  type = list(string)
+  type        = list(string)
   description = "List of base groups"
 }
 
 variable "admin_cidrs" {
-  type = list(string)
+  type        = list(string)
   description = "List of admin cidrs"
 }
 
-variable "subnet_func_ip"{
-    description     = "subnet ip address space"
-    type            = string
+variable "subnet_func_ip" {
+  description = "subnet ip address space"
+  type        = string
 }
